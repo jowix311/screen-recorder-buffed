@@ -59,6 +59,13 @@ Opens one recording with `status` `ready` or `failed`.
 - **Maximum frame size:** 1280×720. Frames are scaled to fit inside this size, keeping aspect ratio. Frames smaller than 1280×720 are not upscaled. Fixed in version 1. <!-- default: accepted by user 2026-11-01 -->
 - **Spoken-language default:** one code from the Recording control list (`en`, `es`, `fr`, `de`, `pt`, `it`, `ja`, `zh`, `ko`), or none. Used to pre-select Recording control. Default: none. <!-- default: accepted by user 2026-11-01 -->
 
+## Approved wording (user, 2026-11-02)
+
+These messages and labels appear in the app and are approved as written.
+
+- Recording control: language placeholder "Choose a language"; source text "Primary monitor"; shortcut notice "Ctrl+Shift+R works only while this window is focused."; stop failure "The recording could not be finished cleanly."; close dialog title "Recording".
+- Settings: "API key is too short" (keys must be at least 20 characters); "Output folder is required."; "Settings could not be saved."; key status "Saved: <masked key>", "No key saved.", "Enter the new key."; remove dialog title "Remove key"; heading "Fixed in version 1".
+
 ## Output files
 
 Each recording writes two files to the output folder:
