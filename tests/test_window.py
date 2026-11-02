@@ -7,13 +7,17 @@ Uses Qt's offscreen platform so no display is needed.
 from __future__ import annotations
 
 import os
+import tempfile
 import unittest
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from screen_recorder_buffed.settings_store import SettingsStore  # noqa: E402
 from screen_recorder_buffed.theme import build_stylesheet  # noqa: E402
+from test_settings import FakeKeyStore  # noqa: E402
 from screen_recorder_buffed.window import (  # noqa: E402
     MIN_HEIGHT,
     MIN_WIDTH,
@@ -31,11 +35,15 @@ class MainWindowTests(unittest.TestCase):
         cls.app.setStyleSheet(build_stylesheet())
 
     def setUp(self) -> None:
-        self.window = MainWindow()
+        # Fake stores: the tests never read the real keyring or config file.
+        self._tmp = tempfile.TemporaryDirectory()
+        store = SettingsStore(Path(self._tmp.name) / "settings.json")
+        self.window = MainWindow(store, FakeKeyStore())
         self.window.show()
 
     def tearDown(self) -> None:
         self.window.close()
+        self._tmp.cleanup()
 
     def test_minimum_size_is_1024_by_640(self) -> None:
         self.assertEqual(self.window.minimumWidth(), MIN_WIDTH)

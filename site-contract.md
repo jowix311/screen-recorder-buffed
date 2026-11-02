@@ -122,7 +122,7 @@ Messages show inline under the field.
 
 ## 9. Hover and transitions
 
-- Buttons: on hover, each RGB channel of the background is multiplied by 0.92; 150 ms ease-out. <!-- default: chosen by drafter, confirm -->
+- Buttons: hover colours are defined in `design-standard.md`, section Buttons (primary and secondary). Transition 150 ms ease-out. <!-- decision 2026-11-02: design-standard.md governs button hover -->
 - Sidebar items: see section 1.
 - The recording indicator blinks: opacity 1 → 0.4 → 1, one full cycle every 1000 ms, linear, repeating while visible. <!-- default: chosen by drafter, confirm -->
 - No other animations in version 1.

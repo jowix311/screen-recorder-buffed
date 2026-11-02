@@ -1,7 +1,7 @@
 """Main window: left sidebar with four screens, minimum size 1024x640.
 
-Behaviour from site-contract.md, section 1. The screens are placeholders in
-Slice 0; their content comes in later slices.
+Behaviour from site-contract.md, section 1. Recording control, library and review
+are placeholders until their slices; Settings is built (Slice 1).
 """
 
 from __future__ import annotations
@@ -18,7 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from screen_recorder_buffed.theme import TOKENS
+from screen_recorder_buffed.key_store import KeyringKeyStore, KeyStore
+from screen_recorder_buffed.settings_screen import SettingsScreen
+from screen_recorder_buffed.settings_store import SettingsStore
+from screen_recorder_buffed.theme import px
 
 SIDEBAR_WIDTH = 200
 MIN_WIDTH = 1024
@@ -32,18 +35,22 @@ SCREEN_NAMES = [
     "Settings",
 ]
 REVIEW_INDEX = 2
+SETTINGS_INDEX = 3
 
 
-def _px(token: str) -> int:
-    """Read a pixel token such as "24px" from theme.TOKENS as an int."""
-    return int(TOKENS[token].removesuffix("px"))
+def _in_scroll_area(page: QWidget) -> QScrollArea:
+    """Content taller than the window scrolls (site-contract.md §1)."""
+    scroll = QScrollArea()
+    scroll.setWidget(page)
+    scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+    return scroll
 
 
 def _placeholder_screen(name: str) -> QWidget:
-    """A screen in a scroll area, so content taller than the window scrolls (site-contract.md §1)."""
     page = QWidget()
     layout = QVBoxLayout(page)
-    padding = _px("space-3")
+    padding = px("space-3")
     layout.setContentsMargins(padding, padding, padding, padding)
     layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
@@ -54,16 +61,11 @@ def _placeholder_screen(name: str) -> QWidget:
 
     layout.addWidget(title)
     layout.addWidget(body)
-
-    scroll = QScrollArea()
-    scroll.setWidget(page)
-    scroll.setWidgetResizable(True)
-    scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-    return scroll
+    return _in_scroll_area(page)
 
 
 class MainWindow(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, store: SettingsStore | None = None, keys: KeyStore | None = None) -> None:
         super().__init__()
         self.setWindowTitle("Screen Recorder Buffed")
         self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
@@ -75,9 +77,13 @@ class MainWindow(QWidget):
 
         self.stack = QStackedWidget()
 
-        for name in SCREEN_NAMES:
+        for index, name in enumerate(SCREEN_NAMES):
             self.sidebar.addItem(QListWidgetItem(name))
-            self.stack.addWidget(_placeholder_screen(name))
+            if index == SETTINGS_INDEX:
+                screen = SettingsScreen(store or SettingsStore(), keys or KeyringKeyStore())
+                self.stack.addWidget(_in_scroll_area(screen))
+            else:
+                self.stack.addWidget(_placeholder_screen(name))
 
         # Recording review is hidden until a library row is opened (site-contract.md §1).
         self.sidebar.setRowHidden(REVIEW_INDEX, True)

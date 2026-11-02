@@ -93,9 +93,92 @@ QLabel#page-body {{
     color: {color-text-muted};
 }}
 
+QLabel#section-title {{
+    font-size: {text-title};
+    font-weight: 600;
+    color: {color-text};
+    margin-top: {space-3};
+}}
+
+QLabel#error-message {{
+    color: {color-status-failed};
+}}
+
+QPushButton {{
+    background-color: transparent;
+    color: {color-text};
+    border: 1px solid {color-border};
+    border-radius: {radius-control};
+    padding: {space-1} {space-2};
+    min-height: 40px;
+    font-weight: 600;
+}}
+
+QPushButton:hover {{
+    background-color: {color-bg-surface};
+}}
+
+QPushButton#primary {{
+    background-color: {color-accent};
+    color: {color-button-primary-text};
+    border: 1px solid {color-accent};
+}}
+
+QPushButton#primary:hover {{
+    background-color: {color-accent-hover};
+}}
+
+QPushButton#destructive {{
+    color: {color-status-failed};
+}}
+
+QPushButton:disabled {{
+    color: {color-text-muted};
+}}
+
+QMessageBox {{
+    background-color: {color-bg-sidebar};
+}}
+
+QLineEdit, QComboBox {{
+    background-color: {color-bg-surface};
+    color: {color-text};
+    border: 1px solid {color-border-input};
+    border-radius: {radius-control};
+    padding: {space-1};
+    min-height: 40px;
+}}
+
+/* Focus ring: a 2px accent border, the Qt stand-in for the outline (see design-standard.md, Qt mapping). */
+QPushButton:focus, QLineEdit:focus, QComboBox:focus, QCheckBox:focus {{
+    border: 2px solid {color-accent};
+}}
+
+QCheckBox {{
+    spacing: {space-1};
+}}
+
+QCheckBox::indicator {{
+    width: 20px;
+    height: 20px;
+    border: 1px solid {color-border-input};
+    border-radius: {radius-control};
+    background-color: {color-bg-surface};
+}}
+
+QCheckBox::indicator:checked {{
+    background-color: {color-accent};
+    border: 1px solid {color-accent};
+}}
+
 """
 
 
 def build_stylesheet() -> str:
     """Return the application stylesheet with every token substituted."""
     return _STYLESHEET.format(**TOKENS)
+
+
+def px(token: str) -> int:
+    """A pixel token such as "space-3" as an int, for layout code."""
+    return int(TOKENS[token].removesuffix("px"))
