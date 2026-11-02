@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from screen_recorder_buffed.key_store import KeyringKeyStore, KeyStore, SecureStoreUnavailable
+from screen_recorder_buffed.library_screen import LibraryScreen
 from screen_recorder_buffed.process_recording import ProcessingError, frame_times, media_duration, process_recording
 from screen_recorder_buffed.portal import PortalClient, ScreenStream
 from screen_recorder_buffed.recording_controller import RecordingController
@@ -48,6 +49,7 @@ SCREEN_NAMES = [
     "Settings",
 ]
 RECORDING_INDEX = 0
+LIBRARY_INDEX = 1
 REVIEW_INDEX = 2
 SETTINGS_INDEX = 3
 
@@ -119,12 +121,17 @@ class MainWindow(QWidget):
 
         self.stack = QStackedWidget()
         self.recording_screen: RecordingScreen | None = None
+        self.library_screen: LibraryScreen | None = None
 
         for index, name in enumerate(SCREEN_NAMES):
             self.sidebar.addItem(QListWidgetItem(name))
             if index == RECORDING_INDEX:
                 self.recording_screen = RecordingScreen(self._store, self._keys, self._controller)
                 self.stack.addWidget(_in_scroll_area(self.recording_screen))
+            elif index == LIBRARY_INDEX:
+                self.library_screen = LibraryScreen(self._output_dir, self._controller.active_videos)
+                self.library_screen.review_requested.connect(self.open_review)
+                self.stack.addWidget(_in_scroll_area(self.library_screen))
             elif index == SETTINGS_INDEX:
                 screen = SettingsScreen(self._store, self._keys)
                 self.stack.addWidget(_in_scroll_area(screen))
@@ -152,6 +159,7 @@ class MainWindow(QWidget):
         layout.addWidget(content, stretch=1)
 
         self._controller.state_changed.connect(self._on_state)
+        self._controller.recording_finished.connect(lambda _path, _status: self._refresh_library())
         self._on_state(self._controller.state.value)
 
         self._shortcut_listener: ShortcutListener | None = None
@@ -289,6 +297,17 @@ class MainWindow(QWidget):
         if index == RECORDING_INDEX and self.recording_screen is not None:
             # Settings may have changed while another screen was open.
             self.recording_screen.refresh()
+        if index == LIBRARY_INDEX:
+            self._refresh_library()
+
+    def _refresh_library(self) -> None:
+        if self.library_screen is not None:
+            self.library_screen.refresh()
+
+    def open_review(self, video: str) -> None:
+        """Open a recording in Recording review (the review screen is built in Slice 7)."""
+        self.show_recording_review()
+        self.sidebar.setCurrentRow(REVIEW_INDEX)
 
     def show_recording_review(self) -> None:
         """Make the Recording review item visible. Called when a library row is opened (Slice 6)."""

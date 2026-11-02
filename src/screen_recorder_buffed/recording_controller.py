@@ -98,6 +98,7 @@ class RecordingController(QObject):
         self._runner = runner
         self._recording: RunningRecording | None = None
         self._language: str | None = None
+        self._current_video: Path | None = None  # the file being processed, or retried
         self._retry_running = False
         self._picking = False
         self._last_size = -1
@@ -119,6 +120,15 @@ class RecordingController(QObject):
     @property
     def retry_running(self) -> bool:
         return self._retry_running
+
+    def active_videos(self) -> dict[Path, str]:
+        """In-progress files and their library status: 'recording' or 'processing'."""
+        active: dict[Path, str] = {}
+        if self._recording is not None:
+            active[self._recording.output_path] = "recording"
+        if self._current_video is not None:
+            active[self._current_video] = "processing"
+        return active
 
     def button_enabled(self, inputs: StartInputs) -> bool:
         if self._picking:
@@ -157,6 +167,7 @@ class RecordingController(QObject):
             return
         meta = read_meta(video)
         self._retry_running = True
+        self._current_video = video
         self._emit_state()
         self._runner(
             lambda: self._process(video, meta.spoken_language, meta.duration_seconds),
@@ -274,6 +285,7 @@ class RecordingController(QObject):
             spoken_language=self._language or "",
         )
         video = recording.output_path
+        self._current_video = video
         self._runner(
             lambda: self._process(video, meta.spoken_language, duration),
             lambda result: self._finish(video, meta, READY, result),
@@ -288,6 +300,7 @@ class RecordingController(QObject):
             status = FAILED
         finally:
             self._retry_running = False
+            self._current_video = None
             self.control.on_processing_done()
             self._emit_state()
         self.recording_finished.emit(str(video), status)
