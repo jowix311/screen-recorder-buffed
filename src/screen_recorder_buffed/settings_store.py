@@ -21,10 +21,13 @@ class Settings:
     privacy_accepted: bool = False
     output_folder: str = DEFAULT_OUTPUT_FOLDER
     default_language: str | None = None  # one of LANGUAGE_CODES, or None for "None"
+    last_language: str | None = None  # the language of the last recording (content-model.md)
 
     def __post_init__(self) -> None:
         if self.default_language is not None and self.default_language not in LANGUAGE_CODES:
             self.default_language = None
+        if self.last_language is not None and self.last_language not in LANGUAGE_CODES:
+            self.last_language = None
 
 
 def default_config_path() -> Path:

@@ -100,6 +100,14 @@ QLabel#section-title {{
     margin-top: {space-3};
 }}
 
+QLabel#recording-badge {{
+    background-color: {color-recording};
+    color: {color-on-recording};
+    border-radius: {radius-control};
+    padding: 4px 8px;
+    font-weight: 600;
+}}
+
 QLabel#error-message {{
     color: {color-status-failed};
 }}
@@ -126,6 +134,14 @@ QPushButton#primary {{
 
 QPushButton#primary:hover {{
     background-color: {color-accent-hover};
+}}
+
+/* design-standard.md asks for opacity 0.5 when disabled. QSS has no opacity, so the
+   accent is mixed 50% with the app background instead (see the Qt mapping). */
+QPushButton#primary:disabled {{
+    background-color: rgba(88, 166, 255, 0.5);
+    border: 1px solid rgba(88, 166, 255, 0.5);
+    color: {color-button-primary-text};
 }}
 
 QPushButton#destructive {{

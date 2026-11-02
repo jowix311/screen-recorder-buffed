@@ -84,4 +84,6 @@ See `design-standard.md`.
 | Privacy acceptance placement | Unchecked checkbox in Settings; processing blocked until ticked | 2026-11-01 | User |
 | Audio in recording | The MKV holds the screen video and the captured system-audio track in one file | 2026-11-01 | User |
 | Data retention | Accepted: the individual API plan's 30-day retention setting (Console, Data retention page); no zero data retention | 2026-11-02 | User |
+| Monitor choice | The desktop's picker decides the monitor, shown each time; the portal cannot force the primary monitor on Wayland. Known deviation from "primary only" | 2026-11-02 | User |
+| Capture stall check | Watches the MKV file growing. A frozen screen with live audio is not detected in version 1; video-branch probe deferred to Slice 8 | 2026-11-02 | User |
 | Claude Code's role | Build tool only; the app's transcription, translation and descriptions do not use Claude Code | 2026-10-31 | User, after the terms and capability check (Claude Code cannot hear audio; Anthropic's legal page requires API-key auth for products) |

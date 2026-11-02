@@ -138,6 +138,9 @@ The app uses Qt stylesheets (QSS), which are not CSS. These rules apply to the Q
 | Hover and focus transitions, 150 ms ease-out | Not implemented. QSS cannot animate `background-color` or `border-color`. This is a known exception |
 | Recording indicator blink, 1000 ms linear | Implemented in code with `QVariantAnimation` or `QTimer` (Slice 2), not in QSS |
 | `prefers-reduced-motion` | Qt has no direct equivalent. Read the desktop setting in code (Slice 8) and stop the blink when it is set |
+| Disabled primary button: `opacity: 0.5` | QSS has no opacity. Use the accent mixed 50% with the app background, `rgba(88, 166, 255, 0.5)`. This is a known exception |
+| Dialog backdrop `--color-backdrop` | Qt dialogs cannot dim the window behind them. Known exception; the dialog keeps its background and 400 px width |
+| Recording badge padding `4px 8px` | Literal values from the spec; they are not tokens |
 | `line-height` | Not supported in QSS. Use `QLabel` sizing and `setContentsMargins`, and check text fits in the design's line heights |
 
 ## CSS custom properties (copy into the app's stylesheet)

@@ -86,6 +86,7 @@ Depends on: 7.
 - `spec-auditor` run against all five docs and the full code; Critical and High findings fixed.
 - Test on a real meeting in a non-English language: transcript and descriptions checked by hand.
 - Check the reduced-motion rule and the focus ring on every control.
+- Stall detection: decide whether to watch the video branch, so a frozen screen with live audio triggers the capture error (accepted as a gap in Slice 2, 2026-11-02).
 
 ## Risks
 
