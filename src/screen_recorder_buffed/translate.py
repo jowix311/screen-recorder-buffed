@@ -19,6 +19,7 @@ API_VERSION = "2023-06-01"
 MODEL = "claude-haiku-5-5"
 TIMEOUT_S = 120
 MAX_OUTPUT_TOKENS = 8192
+BATCH_SIZE = 50  # segments per request; a 60-minute meeting needs about 10 batches
 
 LANGUAGE_NAMES = {
     "en": "English", "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
@@ -32,7 +33,7 @@ class TranslationError(Exception):
     """The translation could not be done. The message never contains the API key."""
 
 
-def _post(body: dict, api_key: str) -> dict:
+def post_message(body: dict, api_key: str) -> dict:
     request = urllib.request.Request(
         API_URL,
         data=json.dumps(body).encode("utf-8"),
@@ -50,6 +51,8 @@ def _post(body: dict, api_key: str) -> dict:
         raise TranslationError(f"Claude API returned HTTP {error.code}") from None
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         raise TranslationError("Could not reach the Claude API") from error
+    except ValueError as error:  # a reply body that is not JSON
+        raise TranslationError("Claude API returned an unreadable reply") from error
 
 
 def build_request(texts: Sequence[str], source_language: str) -> dict:
@@ -68,6 +71,8 @@ def build_request(texts: Sequence[str], source_language: str) -> dict:
 
 
 def parse_response(response: dict, expected: int) -> list[str]:
+    if response.get("stop_reason") == "max_tokens":
+        raise TranslationError("Translation reply was cut short")
     try:
         text = "".join(block["text"] for block in response["content"] if block.get("type") == "text")
     except (KeyError, TypeError) as error:
@@ -85,13 +90,18 @@ def parse_response(response: dict, expected: int) -> list[str]:
 
 
 class ClaudeTranslator:
-    def __init__(self, api_key: str, post: Post = _post) -> None:
+    def __init__(self, api_key: str, post: Post = post_message) -> None:
         self._api_key = api_key
         self._post = post
 
     def translate(self, texts: Sequence[str], source_language: str) -> list[str]:
         if source_language == "en" or not texts:
             return list(texts)
-        body = build_request(texts, source_language)
-        response = self._post(body, self._api_key)
-        return parse_response(response, expected=len(texts))
+        # Long recordings are split into batches, so each reply fits the output limit.
+        english: list[str] = []
+        for start in range(0, len(texts), BATCH_SIZE):
+            batch = list(texts[start:start + BATCH_SIZE])
+            body = build_request(batch, source_language)
+            response = self._post(body, self._api_key)
+            english.extend(parse_response(response, expected=len(batch)))
+        return english

@@ -21,6 +21,24 @@ def reply(text: str) -> dict:
 
 
 class TranslateTests(unittest.TestCase):
+    def test_long_recordings_are_batched(self) -> None:
+        calls: list[int] = []
+
+        def fake_post(body: dict, api_key: str) -> dict:
+            content = body["messages"][0]["content"]
+            count = sum(1 for line in content.splitlines() if line[:1].isdigit())
+            calls.append(count)
+            return reply("[" + ", ".join(f'"e{i}"' for i in range(count)) + "]")
+
+        translator = ClaudeTranslator("sk-ant-x", post=fake_post)
+        result = translator.translate([f"t{i}" for i in range(120)], "ja")
+        self.assertEqual(len(result), 120)
+        self.assertEqual(calls, [50, 50, 20])
+
+    def test_truncated_reply_is_an_error(self) -> None:
+        with self.assertRaises(TranslationError):
+            parse_response({"stop_reason": "max_tokens", "content": []}, expected=1)
+
     def test_english_is_passed_through_without_a_call(self) -> None:
         calls: list = []
         translator = ClaudeTranslator("sk-ant-x", post=lambda b, k: calls.append(b) or {})

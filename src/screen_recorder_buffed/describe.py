@@ -14,7 +14,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from screen_recorder_buffed.translate import MODEL, MAX_OUTPUT_TOKENS, TranslationError, _post
+from screen_recorder_buffed.translate import MODEL, MAX_OUTPUT_TOKENS, TranslationError, post_message
 
 MAX_WIDTH = 1280
 MAX_HEIGHT = 720
@@ -31,19 +31,22 @@ INSTRUCTION = (
 Post = Callable[[dict, str], dict]
 
 
-def extract_frame(video: Path, seconds: float, out_path: Path) -> Path:
-    """Write one frame at `seconds` as a JPEG, scaled to fit 1280x720."""
+def extract_frame(video: Path, seconds: float) -> bytes:
+    """One frame at `seconds` as JPEG bytes, scaled to fit 1280x720. Never written to disk."""
     scale = (
         f"scale=w='min({MAX_WIDTH},iw)':h='min({MAX_HEIGHT},ih)':"
         "force_original_aspect_ratio=decrease"
     )
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{seconds:.3f}", "-i", str(video),
-         "-frames:v", "1", "-vf", scale, "-q:v", "3", str(out_path)],
-        check=True,
+    result = subprocess.run(
+        ["ffmpeg", "-v", "error", "-ss", f"{seconds:.3f}", "-i", str(video),
+         "-frames:v", "1", "-vf", scale, "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3", "pipe:1"],
+        capture_output=True,
         timeout=120,
+        check=True,
     )
-    return out_path
+    if not result.stdout:
+        raise ValueError("no frame at this time")
+    return result.stdout
 
 
 def build_request(jpeg: bytes) -> dict:
@@ -74,13 +77,16 @@ def clean_description(text: str) -> str:
     sentences = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
     kept = "".join(sentences[:MAX_SENTENCES]).strip() or text
     if len(kept) > MAX_CHARS:
-        cut = kept[:MAX_CHARS]
-        space = cut.rfind(" ")
-        kept = cut[:space] if space > 0 else cut
+        # Keep whole words only: cut at the last space at or before position 200.
+        if kept[MAX_CHARS] == " ":
+            kept = kept[:MAX_CHARS]
+        else:
+            space = kept.rfind(" ", 0, MAX_CHARS)
+            kept = kept[:space] if space > 0 else kept[:MAX_CHARS]
     return kept.strip()
 
 
-def describe_jpeg(jpeg: bytes, api_key: str, post: Post = _post) -> str:
+def describe_jpeg(jpeg: bytes, api_key: str, post: Post = post_message) -> str:
     response = post(build_request(jpeg), api_key)
     try:
         text = "".join(block["text"] for block in response["content"] if block.get("type") == "text")
