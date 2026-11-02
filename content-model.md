@@ -47,6 +47,9 @@ Opens one recording with `status` `ready` or `failed`.
 - **Failed state:** when `status` is `failed`, show "Processing failed. The video is kept." with a Retry button. Pressing Retry sets `status` to `processing` and disables the button. Retry reruns the whole pipeline from the MKV file: faster-whisper, translation and all frame descriptions. While it runs, Start is disabled. While `status` is `processing`, show "Processing…" in place of the failure message. On success the status becomes `ready`. On failure it stays `failed`, and the same message and button are shown again. <!-- default: accepted by user 2026-11-01 -->
 - **Title:** editable here. Same rule as the library title. If the sidecar rewrite fails, the title reverts to the previous value and "Title could not be saved" is shown. <!-- default: accepted by user 2026-11-01 -->
 
+- **Labels** (approved 2026-11-02): page heading "Recording review"; section headings "Transcript" and "Screen descriptions"; player buttons "Play" and "Pause".
+- **Recording without a readable sidecar:** shown as failed with its video; the title cannot be edited because there is no sidecar to rewrite.
+
 ## Settings
 
 - **Privacy acceptance:** a checkbox, unchecked by default, with the text "Screen images and transcript text are sent to Anthropic." Processing is blocked while it is unchecked. Unchecking it blocks new processing only; a run already in progress finishes. <!-- default: accepted by user 2026-11-01 -->

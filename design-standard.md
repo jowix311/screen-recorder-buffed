@@ -141,6 +141,7 @@ The app uses Qt stylesheets (QSS), which are not CSS. These rules apply to the Q
 | Disabled primary button: `opacity: 0.5` | QSS has no opacity. Use the accent mixed 50% with the app background, `rgba(88, 166, 255, 0.5)`. This is a known exception |
 | Dialog backdrop `--color-backdrop` | Qt dialogs cannot dim the window behind them. Known exception; the dialog keeps its background and 400 px width |
 | Recording badge padding `4px 8px` | Literal values from the spec; they are not tokens |
+| Timestamps in review lists: `--text-caption`, `--color-text-muted` | A list line cannot style part of its text, so timestamps use the body size and colour. Known exception, accepted 2026-11-02 |
 | `line-height` | Not supported in QSS. Use `QLabel` sizing and `setContentsMargins`, and check text fits in the design's line heights |
 
 ## CSS custom properties (copy into the app's stylesheet)

@@ -98,6 +98,15 @@ Each row shows title, date, duration, spoken language and status, as defined in 
 - Title is edited in place. Save on Enter or when focus leaves the field. An invalid title shows the message from `content-model.md` under the field. If the sidecar rewrite fails, the title reverts to the previous value and "Title could not be saved" shows under the field. <!-- default: chosen by drafter, confirm -->
 - Retry reruns the whole pipeline from the MKV. While it runs, Start is disabled.
 
+### Decisions (user, 2026-11-02)
+
+- Playback keeps running when the user switches to another screen. It stops when the window closes.
+- A failed recording keeps showing its video above the failure message and Retry. Only the transcript and descriptions are hidden.
+- At 1280 px and up, the right-hand 40% column holds the transcript above the screen descriptions.
+- Clicking or pressing Enter anywhere on a transcript or description entry seeks to its time.
+- Retry is disabled while the app is recording, processing or running another retry. The title is locked while a retry runs.
+- If Retry cannot run, the reason shows under the button: "Accept privacy in Settings before processing", "No Claude API key saved", or "The recording's details could not be read".
+
 ## 6. Settings
 
 Messages show inline under the field.
