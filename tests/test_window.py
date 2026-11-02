@@ -38,7 +38,8 @@ class MainWindowTests(unittest.TestCase):
         # Fake stores: the tests never read the real keyring or config file.
         self._tmp = tempfile.TemporaryDirectory()
         store = SettingsStore(Path(self._tmp.name) / "settings.json")
-        self.window = MainWindow(store, FakeKeyStore(), global_shortcut=False, review_video=False)
+        self.window = MainWindow(store, FakeKeyStore(), global_shortcut=False, review_video=False,
+                                 animations=lambda: True)
         self.window.show()
 
     def tearDown(self) -> None:
@@ -88,6 +89,21 @@ class MainWindowTests(unittest.TestCase):
         for index in range(len(SCREEN_NAMES)):
             self.window.sidebar.setCurrentRow(index)
             self.assertEqual(self.window.stack.currentIndex(), index)
+
+
+    def test_badge_blinks_when_recording(self) -> None:
+        self.window._on_state("recording")
+        self.assertFalse(self.window.badge.isHidden())
+        self.assertEqual(self.window._blink.state(), self.window._blink.State.Running)
+        self.window._on_state("idle")
+        self.assertTrue(self.window.badge.isHidden())
+
+    def test_reduced_motion_keeps_the_badge_steady(self) -> None:
+        self.window._animations = lambda: False
+        self.window._on_state("recording")
+        self.assertFalse(self.window.badge.isHidden())
+        self.assertNotEqual(self.window._blink.state(), self.window._blink.State.Running)
+        self.assertEqual(self.window._badge_effect.opacity(), 1.0)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ library and review are placeholders until their slices.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QPropertyAnimation, Qt
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from screen_recorder_buffed.key_store import KeyringKeyStore, KeyStore, SecureStoreUnavailable
 from screen_recorder_buffed.library_screen import LibraryScreen
+from screen_recorder_buffed.motion import animations_enabled
 from screen_recorder_buffed.process_recording import ProcessingError, frame_times, media_duration, process_recording
 from screen_recorder_buffed.portal import PortalClient, ScreenStream
 from screen_recorder_buffed.recording_controller import RecordingController
@@ -103,11 +105,13 @@ class MainWindow(QWidget):
         controller: RecordingController | None = None,
         global_shortcut: bool = True,
         review_video: bool = True,
+        animations: Callable[[], bool] = animations_enabled,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Screen Recorder Buffed")
         self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
 
+        self._animations = animations
         self._store = store or SettingsStore()
         self._keys = keys or KeyringKeyStore()
         self._controller = controller or RecordingController(
@@ -250,10 +254,15 @@ class MainWindow(QWidget):
 
     def _on_state(self, value: str) -> None:
         visible = State(value) in (State.RECORDING, State.STOPPING)
+        was_visible = not self.badge.isHidden()
         self.badge.setVisible(visible)
-        if visible:
+        if visible and was_visible:
+            return  # recording -> stopping: keep whatever the badge is doing
+        if visible and self._animations():
             self._blink.start()
         else:
+            # Hidden, or the desktop asks for reduced motion: no blink, full opacity
+            # (design-standard.md, Motion).
             self._blink.stop()
             self._badge_effect.setOpacity(1.0)
 
