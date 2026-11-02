@@ -1,14 +1,13 @@
 """Processing after a recording: transcribe, translate, describe. Rules: content-model.md.
 
 Input is the finished MKV file. Output is the timestamped data the JSON sidecar needs
-(Slice 5 writes it). Any failure raises ProcessingError, so the caller can set status
+(sidecar.py writes it). Any failure raises ProcessingError, so the caller can set status
 'failed'. Processing sends screen images and transcript text to Anthropic, so it refuses
 to run unless the user has checked the privacy box in Settings (PRD.md, Constraints).
 """
 
 from __future__ import annotations
 
-import json
 import math
 import subprocess
 from collections.abc import Callable, Sequence
@@ -106,18 +105,3 @@ def process_recording(
         result.descriptions.append(ScreenNote(time_seconds=seconds, description=text))
     return result
 
-
-def result_as_json(result: ProcessingResult) -> str:
-    """The transcript and descriptions as the sidecar's lists (content-model.md, Output files)."""
-    return json.dumps({
-        "segments": [
-            {"start_seconds": round(line.start_seconds, 3),
-             "original_text": line.original_text,
-             "english_text": line.english_text}
-            for line in result.lines
-        ],
-        "descriptions": [
-            {"time_seconds": note.time_seconds, "description": note.description}
-            for note in result.descriptions
-        ],
-    }, ensure_ascii=False, indent=2)

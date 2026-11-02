@@ -96,7 +96,7 @@ class RecordingScreen(QWidget):
             privacy_accepted=settings.privacy_accepted,
             has_key=has_key,
             language_selected=self.language.currentData() is not None,
-            retry_running=False,  # Retry arrives with Slice 5
+            retry_running=self._controller.retry_running,
         )
 
     def _preselect_language(self) -> None:
@@ -136,13 +136,13 @@ class RecordingScreen(QWidget):
         if self._controller.state is State.RECORDING:
             self._controller.stop()
             return
-        self._controller.start(self.inputs())
+        self._controller.start(self.inputs(), self.language.currentData())
 
     def toggle_from_shortcut(self) -> None:
         """Ctrl+Shift+R. Ignored while Start is blocked (site-contract.md §2)."""
         if self._controller.state is State.IDLE and start_blockers(self.inputs()):
             return
-        self._controller.toggle(self.inputs())
+        self._controller.toggle(self.inputs(), self.language.currentData())
 
     def show_shortcut_notice(self, visible: bool) -> None:
         self.shortcut_notice.setVisible(visible)

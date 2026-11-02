@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from screen_recorder_buffed.capture import Recorder, RunningRecording, default_audio_monitor
 from screen_recorder_buffed.portal import PortalError, ScreenStream
+from screen_recorder_buffed.process_recording import ProcessingResult
 from screen_recorder_buffed.recording_state import (
     MSG_CAPTURE_ERROR,
     MSG_NO_SOURCE,
@@ -27,8 +29,11 @@ from screen_recorder_buffed.recording_state import (
     is_stalled,
     start_blockers,
 )
+from screen_recorder_buffed.sidecar import FAILED, READY, SidecarMeta, default_title, read_meta, write_sidecar
 
 TICK_MS = 1000
+
+Processor = Callable[[Path, str, int], ProcessingResult]  # (video, language, duration_s) -> result
 
 Runner = Callable[[Callable[[], Any], Callable[[Any], None], Callable[[str], None]], None]
 
@@ -71,12 +76,13 @@ class RecordingController(QObject):
     state_changed = Signal(str)
     messages_changed = Signal(list)
     elapsed_changed = Signal(str)
-    recording_finished = Signal(str)  # MKV path, once the file is finalised
+    recording_finished = Signal(str, str)  # MKV path and final status: 'ready' or 'failed'
 
     def __init__(
         self,
         pick_screen: Callable[[], ScreenStream],
         output_dir: Callable[[], Path],
+        process: Processor,
         audio_monitor: Callable[[], str | None] = default_audio_monitor,
         recorder: Recorder | None = None,
         runner: Runner = threaded_runner,
@@ -86,10 +92,13 @@ class RecordingController(QObject):
         self.control = RecordingControl()
         self._pick_screen = pick_screen
         self._output_dir = output_dir
+        self._process = process
         self._audio_monitor = audio_monitor
         self._recorder = recorder or Recorder()
         self._runner = runner
         self._recording: RunningRecording | None = None
+        self._language: str | None = None
+        self._retry_running = False
         self._picking = False
         self._last_size = -1
         self._last_growth = 0.0
@@ -107,6 +116,10 @@ class RecordingController(QObject):
     def picking(self) -> bool:
         return self._picking
 
+    @property
+    def retry_running(self) -> bool:
+        return self._retry_running
+
     def button_enabled(self, inputs: StartInputs) -> bool:
         if self._picking:
             return False
@@ -114,25 +127,42 @@ class RecordingController(QObject):
 
     # --- Commands ---------------------------------------------------------
 
-    def start(self, inputs: StartInputs) -> None:
-        """Start button or Ctrl+Shift+R while idle."""
-        if self.control.state is not State.IDLE or self._picking:
+    def start(self, inputs: StartInputs, language: str | None) -> None:
+        """Start button or Ctrl+Shift+R while idle. `language` is the spoken language code."""
+        if self.control.state is not State.IDLE or self._picking or self._retry_running:
             return
         blockers = start_blockers(inputs)
         if blockers:
             self._set_messages(blockers)
             return
         self._set_messages([])
+        self._language = language
         self._picking = True
         self._emit_state()
         self._runner(self._pick_screen, lambda stream: self._on_picked(stream, inputs), self._on_pick_failed)
 
-    def toggle(self, inputs: StartInputs) -> None:
+    def toggle(self, inputs: StartInputs, language: str | None) -> None:
         """Ctrl+Shift+R: start when idle, stop when recording."""
         if self.control.state is State.RECORDING:
             self.stop()
         else:
-            self.start(inputs)
+            self.start(inputs, language)
+
+    def retry(self, video: Path) -> None:
+        """Rerun processing for a finished recording from its MKV (content-model.md, Retry).
+
+        Start is disabled while the retry runs.
+        """
+        if self.control.state is not State.IDLE or self._retry_running:
+            return
+        meta = read_meta(video)
+        self._retry_running = True
+        self._emit_state()
+        self._runner(
+            lambda: self._process(video, meta.spoken_language, meta.duration_seconds),
+            lambda result: self._finish(video, meta, READY, result),
+            lambda message: self._finish(video, meta, FAILED, None),
+        )
 
     def stop(self) -> None:
         if not self.control.request_stop():
@@ -211,7 +241,7 @@ class RecordingController(QObject):
         self._emit_state()
         self._finish_in_background()
 
-    # --- Stop: finalise the file, then processing (placeholder until Slice 4) ---
+    # --- Stop: finalise the file, then processing ---
 
     def _finish_in_background(self) -> None:
         recording = self._recording
@@ -235,10 +265,32 @@ class RecordingController(QObject):
         recording.stream.close()  # the portal session ends with its connection
         self.control.on_file_finalised()
         self._emit_state()
-        # Processing is a placeholder until Slices 3–5 add transcription and descriptions.
-        self.control.on_processing_done()
-        self.recording_finished.emit(str(recording.output_path))
-        self._emit_state()
+        started = recording.started_at.astimezone()
+        duration = int(recording.elapsed())
+        meta = SidecarMeta(
+            title=default_title(started),
+            started_at=started,
+            duration_seconds=duration,
+            spoken_language=self._language or "",
+        )
+        video = recording.output_path
+        self._runner(
+            lambda: self._process(video, meta.spoken_language, duration),
+            lambda result: self._finish(video, meta, READY, result),
+            lambda message: self._finish(video, meta, FAILED, None),
+        )
+
+    def _finish(self, video: Path, meta: SidecarMeta, status: str, result: ProcessingResult | None) -> None:
+        """Write the sidecar with the final status, then return to idle (content-model.md)."""
+        try:
+            write_sidecar(video, meta, status, result)
+        except Exception:  # noqa: BLE001 - any write failure: failed for this session
+            status = FAILED
+        finally:
+            self._retry_running = False
+            self.control.on_processing_done()
+            self._emit_state()
+        self.recording_finished.emit(str(video), status)
 
     # --- Helpers ----------------------------------------------------------
 

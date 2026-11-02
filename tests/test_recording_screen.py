@@ -16,6 +16,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from screen_recorder_buffed.process_recording import ProcessingResult  # noqa: E402
 from screen_recorder_buffed.recording_controller import RecordingController  # noqa: E402
 from screen_recorder_buffed.recording_screen import RecordingScreen  # noqa: E402
 from screen_recorder_buffed.recording_state import MSG_KEY, MSG_PRIVACY  # noqa: E402
@@ -39,6 +40,7 @@ class RecordingScreenTests(unittest.TestCase):
         self.controller = RecordingController(
             pick_screen=self._pick,
             output_dir=lambda: self.root,
+            process=lambda video, language, duration: ProcessingResult(),
             audio_monitor=lambda: "sink.monitor",
             recorder=self.recorder,
             runner=sync_runner,

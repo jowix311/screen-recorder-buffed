@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from screen_recorder_buffed.key_store import KeyringKeyStore, KeyStore
+from screen_recorder_buffed.key_store import KeyringKeyStore, KeyStore, SecureStoreUnavailable
+from screen_recorder_buffed.process_recording import ProcessingError, frame_times, media_duration, process_recording
 from screen_recorder_buffed.portal import PortalClient, ScreenStream
 from screen_recorder_buffed.recording_controller import RecordingController
 from screen_recorder_buffed.recording_screen import RecordingScreen
@@ -32,6 +33,7 @@ from screen_recorder_buffed.recording_state import State
 from screen_recorder_buffed.settings_screen import SettingsScreen
 from screen_recorder_buffed.settings_store import SettingsStore
 from screen_recorder_buffed.shortcut import ShortcutListener
+from screen_recorder_buffed.transcribe import SubprocessTranscriber
 from screen_recorder_buffed.theme import px
 
 SIDEBAR_WIDTH = 200
@@ -107,6 +109,7 @@ class MainWindow(QWidget):
         self._controller = controller or RecordingController(
             pick_screen=_pick_primary_monitor,
             output_dir=self._output_dir,
+            process=self._process_recording,
         )
 
         self.sidebar = QListWidget()
@@ -162,6 +165,48 @@ class MainWindow(QWidget):
 
     def _output_dir(self) -> Path:
         return Path(os.path.expanduser(self._store.load().output_folder))
+
+    def _processing_blocker(self) -> str | None:
+        """Why processing cannot run now, or None. Checked before any Retry writes anything."""
+        if not self._store.load().privacy_accepted:
+            return "Accept privacy in Settings before processing"
+        try:
+            has_key = bool(self._keys.get_key())
+        except SecureStoreUnavailable:
+            has_key = False
+        return None if has_key else "No Claude API key saved"
+
+    def retry_recording(self, video: Path) -> str | None:
+        """Retry processing for a recording. Returns a message when Retry cannot run, else None."""
+        blocker = self._processing_blocker()
+        if blocker:
+            return blocker
+        try:
+            self._controller.retry(video)
+        except ValueError:
+            return "The recording's details could not be read"
+        return None
+
+    def _process_recording(self, video: Path, language: str, duration: int):
+        """Transcribe, translate and describe a finished recording. Runs on a worker thread.
+
+        Frame times come from the MKV's own length, so a fraction of a second is not lost.
+        """
+        settings = self._store.load()
+        try:
+            key = self._keys.get_key()
+        except SecureStoreUnavailable as error:
+            raise ProcessingError(str(error)) from error
+        if not key:
+            raise ProcessingError("No Claude API key saved")
+        return process_recording(
+            video,
+            language,
+            key,
+            privacy_accepted=settings.privacy_accepted,
+            transcribe=SubprocessTranscriber().transcribe,
+            times=frame_times(media_duration(video)),
+        )
 
     # --- Recording badge (site-contract.md §2) -----------------------------
 

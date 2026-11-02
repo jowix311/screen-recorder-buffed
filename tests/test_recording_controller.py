@@ -18,6 +18,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from screen_recorder_buffed.capture import RunningRecording  # noqa: E402
 from screen_recorder_buffed.portal import PortalError, ScreenStream  # noqa: E402
+from screen_recorder_buffed.process_recording import ProcessingError, ProcessingResult  # noqa: E402
 from screen_recorder_buffed.recording_controller import RecordingController  # noqa: E402
 from screen_recorder_buffed.recording_state import (  # noqa: E402
     MSG_CAPTURE_ERROR,
@@ -32,13 +33,17 @@ READY = StartInputs(privacy_accepted=True, has_key=True, language_selected=True,
 
 
 def sync_runner(work, on_ok, on_error):
-    """Runs the work immediately, on the calling thread."""
+    """Runs the work immediately, on the calling thread. Mirrors threaded_runner's error handling."""
     try:
         result = work()
-    except PortalError as error:
+    except Exception as error:  # noqa: BLE001 - same rule as the threaded runner
         on_error(str(error))
     else:
         on_ok(result)
+
+
+def fake_process(video, language, duration):
+    return ProcessingResult()
 
 
 class FakeStream(ScreenStream):
@@ -117,10 +122,13 @@ class ControllerTests(unittest.TestCase):
             raise PortalError(self.pick_error)
         return self.stream
 
+    process = staticmethod(fake_process)
+
     def _controller(self) -> RecordingController:
         return RecordingController(
             pick_screen=self._pick,
             output_dir=lambda: self.root,
+            process=self.process,
             audio_monitor=lambda: self.audio,
             recorder=self.recorder,
             runner=sync_runner,
@@ -128,14 +136,14 @@ class ControllerTests(unittest.TestCase):
 
     def test_blocked_start_shows_messages_and_does_not_pick(self) -> None:
         controller = self._controller()
-        controller.start(replace(READY, privacy_accepted=False, has_key=False))
+        controller.start(replace(READY, privacy_accepted=False, has_key=False), 'ja')
         self.assertEqual(self.picks, 0)
         self.assertEqual(controller.state, State.IDLE)
         self.assertEqual(controller.control.messages, [MSG_PRIVACY, MSG_KEY])
 
     def test_successful_start_records_and_shows_recording_state(self) -> None:
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         self.assertEqual(self.picks, 1)
         self.assertEqual(self.recorder.started, 1)
         self.assertEqual(controller.state, State.RECORDING)
@@ -144,7 +152,7 @@ class ControllerTests(unittest.TestCase):
     def test_picker_cancelled_stays_idle_without_message(self) -> None:
         self.pick_error = "cancelled"
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         self.assertEqual(controller.state, State.IDLE)
         self.assertEqual(controller.control.messages, [])
         self.assertEqual(self.recorder.started, 0)
@@ -152,14 +160,14 @@ class ControllerTests(unittest.TestCase):
     def test_picker_failure_shows_no_source_message(self) -> None:
         self.pick_error = "The desktop refused the request"
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         self.assertEqual(controller.state, State.IDLE)
         self.assertEqual(controller.control.messages, [MSG_NO_SOURCE])
 
     def test_missing_audio_monitor_refuses_start(self) -> None:
         self.audio = None
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         self.assertEqual(controller.state, State.IDLE)
         self.assertEqual(controller.control.messages, [MSG_NO_SOURCE])
         self.assertTrue(self.stream.closed)
@@ -167,25 +175,26 @@ class ControllerTests(unittest.TestCase):
     def test_stop_finalises_and_returns_to_idle(self) -> None:
         controller = self._controller()
         finished: list[str] = []
-        controller.recording_finished.connect(finished.append)
-        controller.start(READY)
+        controller.recording_finished.connect(lambda path, status: finished.append((path, status)))
+        controller.start(READY, 'ja')
         controller.stop()
         self.assertEqual(self.recorder.stopped, 1)
         self.assertEqual(controller.state, State.IDLE)
         self.assertEqual(len(finished), 1)
-        self.assertTrue(finished[0].endswith(".mkv"))
+        self.assertTrue(finished[0][0].endswith(".mkv"))
+        self.assertEqual(finished[0][1], "ready")
         self.assertTrue(self.stream.closed)
 
     def test_toggle_stops_while_recording(self) -> None:
         controller = self._controller()
-        controller.start(READY)
-        controller.toggle(READY)
+        controller.start(READY, 'ja')
+        controller.toggle(READY, 'ja')
         self.assertEqual(self.recorder.stopped, 1)
         self.assertEqual(controller.state, State.IDLE)
 
     def test_process_exit_during_recording_is_a_capture_error(self) -> None:
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         self.recorder.process.returncode = 1
         controller._tick()
         self.assertEqual(controller.state, State.IDLE)
@@ -193,7 +202,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_no_new_data_for_five_seconds_is_a_capture_error(self) -> None:
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         clock = {"now": 100.0}
         controller._now = staticmethod(lambda: clock["now"])
         controller._last_growth = 100.0
@@ -208,7 +217,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_growing_file_is_not_a_stall(self) -> None:
         controller = self._controller()
-        controller.start(READY)
+        controller.start(READY, 'ja')
         clock = {"now": 100.0}
         controller._now = staticmethod(lambda: clock["now"])
         controller._last_growth = 100.0
