@@ -24,7 +24,7 @@ class LibraryError(Exception):
 class LibraryRow:
     video: Path
     title: str
-    started_at: datetime | None  # local time, for display
+    started_at: datetime | None  # naive local time, for display and sorting
     duration_seconds: int | None
     spoken_language: str | None
     status: str  # 'recording', 'processing', 'ready' or 'failed'
@@ -46,7 +46,8 @@ def _row_for(video: Path, active: dict[Path, str]) -> LibraryRow:
         return LibraryRow(video, video.stem, _started_from_name(video), None, None, active[video])
     try:
         data = read_sidecar(video)
-        started = datetime.fromisoformat(data["started_at"]).astimezone()
+        # Naive local time, so it sorts with rows whose time comes from the file name.
+        started = datetime.fromisoformat(data["started_at"]).astimezone().replace(tzinfo=None)
         duration = data.get("duration_seconds")
         return LibraryRow(
             video=video,
@@ -70,7 +71,7 @@ def scan_library(folder: Path, active: dict[Path, str] | None = None) -> list[Li
     except OSError as error:
         raise LibraryError(f"Cannot read output folder: {folder}") from error
     rows = [_row_for(video, active) for video in videos]
-    rows.sort(key=lambda row: row.started_at or datetime.min.astimezone(), reverse=True)
+    rows.sort(key=lambda row: row.started_at or datetime.min, reverse=True)
     return rows
 
 

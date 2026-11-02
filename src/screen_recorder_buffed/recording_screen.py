@@ -18,9 +18,10 @@ from screen_recorder_buffed.settings_store import SettingsStore
 from screen_recorder_buffed.theme import px
 
 MAX_WIDTH = 720
-PLACEHOLDER_LANGUAGE = "Choose a language"  # new wording; to approve
+PLACEHOLDER_LANGUAGE = "Choose a language"
+MSG_NOT_SAVED = "Settings could not be saved."
 SOURCE_TEXT = "Primary monitor"
-SHORTCUT_NOTICE = "Ctrl+Shift+R works only while this window is focused."  # new wording; to approve
+SHORTCUT_NOTICE = "Ctrl+Shift+R works only while this window is focused."
 
 
 class RecordingScreen(QWidget):
@@ -81,6 +82,7 @@ class RecordingScreen(QWidget):
         controller.elapsed_changed.connect(self.timer.setText)
 
         self._controller_messages: list[str] = []
+        self._save_error: str | None = None
         self._preselect_language()
         self.refresh()
 
@@ -123,8 +125,11 @@ class RecordingScreen(QWidget):
         self.timer.setVisible(self._controller.control.timer_visible())
         if state is State.IDLE:
             self.timer.setText("00:00:00")
-        self.language.setEnabled(state is State.IDLE)
-        self._show_messages(blockers or self._controller_messages)
+        self.language.setEnabled(state is State.IDLE and not self._controller.picking)
+        messages = blockers or self._controller_messages
+        if self._save_error:
+            messages = [*messages, self._save_error]
+        self._show_messages(messages)
 
     def _show_messages(self, messages: list[str]) -> None:
         self.messages.setText("\n".join(messages))
@@ -151,11 +156,15 @@ class RecordingScreen(QWidget):
 
     def _on_language_changed(self, _index: int) -> None:
         code = self.language.currentData()
+        self._save_error = None
         if code is not None:
             # Saved as soon as it is chosen (content-model.md: the last language chosen).
             settings = self._store.load()
             settings.last_language = code
-            self._store.save(settings)
+            try:
+                self._store.save(settings)
+            except OSError:
+                self._save_error = MSG_NOT_SAVED
         self.refresh()
 
     def _on_state(self, _value: str) -> None:

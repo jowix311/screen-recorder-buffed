@@ -136,6 +136,12 @@ QPushButton#primary:hover {{
     background-color: {color-accent-hover};
 }}
 
+/* An ID selector outranks :focus, so primary buttons need their own ring. The accent
+   fill would hide an accent ring, so it uses the active text colour (see the Qt mapping). */
+QPushButton#primary:focus {{
+    border: 2px solid {color-text-active};
+}}
+
 /* design-standard.md asks for opacity 0.5 when disabled. QSS has no opacity, so the
    accent is mixed 50% with the app background instead (see the Qt mapping). */
 QPushButton#primary:disabled {{
@@ -168,6 +174,14 @@ QLineEdit, QComboBox {{
 /* Focus ring: a 2px accent border, the Qt stand-in for the outline (see design-standard.md, Qt mapping). */
 QPushButton:focus, QLineEdit:focus, QComboBox:focus, QCheckBox:focus,
 QSlider:focus, QListWidget:focus, QTableWidget:focus {{
+    border: 2px solid {color-accent};
+}}
+
+QTableWidget::item:hover {{
+    background-color: {color-bg-surface};
+}}
+
+QTableWidget::item:focus {{
     border: 2px solid {color-accent};
 }}
 

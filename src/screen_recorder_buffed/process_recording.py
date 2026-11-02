@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from screen_recorder_buffed.describe import describe_jpeg, extract_frame
+from screen_recorder_buffed.describe import NoFrameError, describe_jpeg, extract_frame
 from screen_recorder_buffed.transcribe import Segment
 from screen_recorder_buffed.translate import ClaudeTranslator
 
@@ -94,9 +94,17 @@ def process_recording(
 
     if times is None:
         times = frame_times(media_duration(video))
+    last = times[-1] if times else None
     for seconds in times:
         try:
             jpeg = extract(video, float(seconds))  # kept in memory, never written to disk
+        except NoFrameError:
+            if seconds == last:
+                break  # audio ran past the last video frame; the recording is still fine
+            raise ProcessingError(f"Screen description failed at {seconds}s: no video frame") from None
+        except Exception as error:  # noqa: BLE001 - frame failure is a 'failed' status
+            raise ProcessingError(f"Screen description failed at {seconds}s: {error}") from error
+        try:
             text = describe(jpeg, api_key)
         except ProcessingError:
             raise

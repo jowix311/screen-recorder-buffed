@@ -137,7 +137,8 @@ The app uses Qt stylesheets (QSS), which are not CSS. These rules apply to the Q
 | `outline: none` must not appear | Unchanged. The stylesheet must not contain `outline: none` or `outline: 0` |
 | Hover and focus transitions, 150 ms ease-out | Not implemented. QSS cannot animate `background-color` or `border-color`. This is a known exception |
 | Recording indicator blink, 1000 ms linear | Implemented in code with `QVariantAnimation` or `QTimer` (Slice 2), not in QSS |
-| `prefers-reduced-motion` | Qt has no direct equivalent. Read the desktop setting in code (Slice 8) and stop the blink when it is set |
+| `prefers-reduced-motion` | Qt has no direct equivalent. The app reads `org.gnome.desktop.interface enable-animations` through the portal Settings interface each time the badge appears; when it is false, the badge does not blink and stays at opacity 1 |
+| Focus ring on primary buttons | The accent fill would hide an accent ring, so focused primary buttons get a 2 px `--color-text-active` (#ffffff) border instead. Known exception |
 | Disabled primary button: `opacity: 0.5` | QSS has no opacity. Use the accent mixed 50% with the app background, `rgba(88, 166, 255, 0.5)`. This is a known exception |
 | Dialog backdrop `--color-backdrop` | Qt dialogs cannot dim the window behind them. Known exception; the dialog keeps its background and 400 px width |
 | Recording badge padding `4px 8px` | Literal values from the spec; they are not tokens |

@@ -19,7 +19,7 @@ MIN_KEY_LENGTH = 20
 
 MSG_NO_STORE = "No secure store available"
 MSG_BAD_PREFIX = "API key must start with sk-ant-"
-MSG_TOO_SHORT = "API key is too short"  # wording not yet in content-model.md; approve or change
+MSG_TOO_SHORT = "API key is too short"
 
 
 class SecureStoreUnavailable(Exception):

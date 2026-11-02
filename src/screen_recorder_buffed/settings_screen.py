@@ -92,8 +92,16 @@ class SettingsScreen(QWidget):
 
     # --- Persistence -------------------------------------------------------
 
-    def _persist(self, error_label: QLabel) -> bool:
-        """Save the settings file. On failure, show the message under the field and return False."""
+    def _persist(self, error_label: QLabel, **changes) -> bool:
+        """Apply `changes` to the settings on disk and save. On failure, show the message.
+
+        Reloads first, so a value saved by another screen (e.g. the last language chosen
+        in Recording control) is never overwritten by an old copy.
+        """
+        fresh = self._store.load()
+        for name, value in changes.items():
+            setattr(fresh, name, value)
+        self._settings = fresh
         try:
             self._store.save(self._settings)
         except OSError:
@@ -116,8 +124,7 @@ class SettingsScreen(QWidget):
         return box
 
     def _on_privacy_toggled(self, checked: bool) -> None:
-        self._settings.privacy_accepted = checked
-        self._persist(self.privacy_error)
+        self._persist(self.privacy_error, privacy_accepted=checked)
 
     # --- Claude API key ----------------------------------------------------
 
@@ -259,8 +266,7 @@ class SettingsScreen(QWidget):
             self._show_error(self.folder_error, error or "")
             return
         self.folder_error.hide()
-        self._settings.output_folder = self.folder_input.text().strip()
-        self._persist(self.folder_error)
+        self._persist(self.folder_error, output_folder=self.folder_input.text().strip())
 
     # --- Spoken-language default -------------------------------------------
 
@@ -288,8 +294,7 @@ class SettingsScreen(QWidget):
         return box
 
     def _on_save_language(self) -> None:
-        self._settings.default_language = self.language.currentData()
-        self._persist(self.language_error)
+        self._persist(self.language_error, default_language=self.language.currentData())
 
     # --- Fixed values ------------------------------------------------------
 

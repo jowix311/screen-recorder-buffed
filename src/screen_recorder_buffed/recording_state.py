@@ -16,7 +16,7 @@ MSG_LANGUAGE = "Select a spoken language to record"
 MSG_RETRY = "Wait for the retry to finish before recording"
 MSG_NO_SOURCE = "No screen or system-audio source found"
 MSG_CAPTURE_ERROR = "Capture stopped. The partial recording is being processed."
-MSG_STOP_FAILED = "The recording could not be finished cleanly."  # new wording; to approve
+MSG_STOP_FAILED = "The recording could not be finished cleanly."
 
 
 class State(str, Enum):

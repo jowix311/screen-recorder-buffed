@@ -99,6 +99,7 @@ class RecordingController(QObject):
         self._recording: RunningRecording | None = None
         self._language: str | None = None
         self._current_video: Path | None = None  # the file being processed, or retried
+        self._stop_elapsed: float | None = None
         self._retry_running = False
         self._picking = False
         self._last_size = -1
@@ -125,7 +126,8 @@ class RecordingController(QObject):
         """In-progress files and their library status: 'recording' or 'processing'."""
         active: dict[Path, str] = {}
         if self._recording is not None:
-            active[self._recording.output_path] = "recording"
+            # 'processing' while stopping too (content-model.md, Recording library: Status).
+            active[self._recording.output_path] = self.control.library_status()
         if self._current_video is not None:
             active[self._current_video] = "processing"
         return active
@@ -163,7 +165,7 @@ class RecordingController(QObject):
 
         Start is disabled while the retry runs.
         """
-        if self.control.state is not State.IDLE or self._retry_running:
+        if self.control.state is not State.IDLE or self._retry_running or self._picking:
             return
         meta = read_meta(video)
         self._retry_running = True
@@ -178,6 +180,7 @@ class RecordingController(QObject):
     def stop(self) -> None:
         if not self.control.request_stop():
             return
+        self._mark_stop_time()
         self._timer.stop()
         self._emit_state()
         self._finish_in_background()
@@ -199,6 +202,11 @@ class RecordingController(QObject):
 
     def _on_picked(self, stream: ScreenStream, inputs: StartInputs) -> None:
         self._picking = False
+        if self._retry_running:
+            # A retry started while the picker was open; never run both at once.
+            self._close_fd(stream)
+            self._emit_state()
+            return
         audio = self._audio_monitor()
         if audio is None:
             self._close_fd(stream)
@@ -208,8 +216,8 @@ class RecordingController(QObject):
         self.control.request_start(inputs, source_available=True)
         try:
             self._recording = self._recorder.start(stream, audio, self._output_dir())
-        except OSError:
-            # Popen or the output folder failed: release the stream and go back to idle.
+        except Exception:  # noqa: BLE001 - Popen, the output folder, or anything else
+            # Release the stream and go back to idle.
             self.control.state = State.IDLE
             self._close_fd(stream)
             self._set_messages([MSG_NO_SOURCE])
@@ -247,6 +255,7 @@ class RecordingController(QObject):
     def _capture_failed(self) -> None:
         if not self.control.on_capture_error():
             return
+        self._mark_stop_time()
         self._timer.stop()
         self._set_messages([MSG_CAPTURE_ERROR])
         self._emit_state()
@@ -277,7 +286,9 @@ class RecordingController(QObject):
         self.control.on_file_finalised()
         self._emit_state()
         started = recording.started_at.astimezone()
-        duration = int(recording.elapsed())
+        # Recorded seconds up to Stop, not including the time spent finalising the file.
+        duration = int(self._stop_elapsed if self._stop_elapsed is not None else recording.elapsed())
+        self._stop_elapsed = None
         meta = SidecarMeta(
             title=default_title(started),
             started_at=started,
@@ -306,6 +317,10 @@ class RecordingController(QObject):
         self.recording_finished.emit(str(video), status)
 
     # --- Helpers ----------------------------------------------------------
+
+    def _mark_stop_time(self) -> None:
+        if self._recording is not None:
+            self._stop_elapsed = self._recording.elapsed()
 
     @staticmethod
     def _close_fd(stream: ScreenStream) -> None:

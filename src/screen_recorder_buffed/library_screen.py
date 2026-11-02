@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -29,9 +30,10 @@ from screen_recorder_buffed.recording_library import (
     format_started,
     scan_library,
 )
-from screen_recorder_buffed.theme import px
+from screen_recorder_buffed.theme import TOKENS, px
 
 HEADERS = ["Title", "Date", "Duration", "Language", "Status"]
+STATUS_COLUMN = 4
 EMPTY_TEXT = "No recordings yet. Start one from Recording control."
 LOADING_TEXT = "Loading recordings…"
 MAX_WIDTH = 1200
@@ -110,11 +112,15 @@ class LibraryScreen(QWidget):
                 row.title,
                 format_started(row.started_at),
                 format_duration(row.duration_seconds),
-                languages.label(code) if code in dict(languages.LANGUAGES) else "—",
+                languages.label(code) if code in languages.LANGUAGE_CODES else "—",
                 row.status,
             ]
             for column, text in enumerate(cells):
-                self.table.setItem(row_index, column, QTableWidgetItem(text))
+                item = QTableWidgetItem(text)
+                if column == STATUS_COLUMN:
+                    # Status colour plus its text label (design-standard.md, Colour).
+                    item.setForeground(QColor(TOKENS[f"color-status-{row.status}"]))
+                self.table.setItem(row_index, column, item)
         self.table.show()
 
     # --- Interaction -------------------------------------------------------

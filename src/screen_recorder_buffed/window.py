@@ -1,7 +1,7 @@
 """Main window: left sidebar with four screens, minimum size 1024x640.
 
-Behaviour from site-contract.md, section 1. Recording control and Settings are built;
-library and review are placeholders until their slices.
+Behaviour from site-contract.md, section 1: Recording control, Recording library,
+Recording review and Settings.
 """
 
 from __future__ import annotations
@@ -143,7 +143,9 @@ class MainWindow(QWidget):
                 self.review_screen = ReviewScreen(
                     retry=self.retry_recording,
                     is_processing=lambda video: video in self._controller.active_videos(),
-                    can_retry=lambda: self._controller.state is State.IDLE and not self._controller.retry_running,
+                    can_retry=lambda: (self._controller.state is State.IDLE
+                                       and not self._controller.retry_running
+                                       and not self._controller.picking),
                     with_video=review_video,
                 )
                 self.review_screen.title_changed.connect(lambda _path: self._refresh_library())
@@ -294,6 +296,10 @@ class MainWindow(QWidget):
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt name
         state = self._controller.state
+        if state is State.IDLE and (self._controller.retry_running or self._controller.picking):
+            # A retry is processing (or the picker is open): stay open until it ends (site-contract.md §3).
+            event.ignore()
+            return
         if state is State.IDLE:
             self._shutdown()
             event.accept()

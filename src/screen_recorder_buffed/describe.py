@@ -45,8 +45,12 @@ def extract_frame(video: Path, seconds: float) -> bytes:
         check=True,
     )
     if not result.stdout:
-        raise ValueError("no frame at this time")
+        raise NoFrameError(f"no video frame at {seconds:.3f}s")
     return result.stdout
+
+
+class NoFrameError(ValueError):
+    """ffmpeg returned no frame, e.g. when audio runs past the last video frame."""
 
 
 def build_request(jpeg: bytes) -> dict:
