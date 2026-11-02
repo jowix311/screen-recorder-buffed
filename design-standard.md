@@ -126,6 +126,20 @@ Rules:
 
 <!-- default: motion chosen by drafter, confirm -->
 
+## Qt mapping (PySide6)
+
+The app uses Qt stylesheets (QSS), which are not CSS. These rules apply to the Qt build, as agreed on 2026-11-02:
+
+| CSS rule | Qt mapping |
+|----------|------------|
+| Custom properties on `:root` | Python dict `TOKENS` in `theme.py`, substituted into the QSS string |
+| `:focus-visible` outline, 2 px, offset 2 px | QSS has no `outline` or `:focus-visible`. Use a 2 px `border` in `--color-accent` on `:focus`, on the sidebar and on each control |
+| `outline: none` must not appear | Unchanged. The stylesheet must not contain `outline: none` or `outline: 0` |
+| Hover and focus transitions, 150 ms ease-out | Not implemented. QSS cannot animate `background-color` or `border-color`. This is a known exception |
+| Recording indicator blink, 1000 ms linear | Implemented in code with `QVariantAnimation` or `QTimer` (Slice 2), not in QSS |
+| `prefers-reduced-motion` | Qt has no direct equivalent. Read the desktop setting in code (Slice 8) and stop the blink when it is set |
+| `line-height` | Not supported in QSS. Use `QLabel` sizing and `setContentsMargins`, and check text fits in the design's line heights |
+
 ## CSS custom properties (copy into the app's stylesheet)
 
 ```css

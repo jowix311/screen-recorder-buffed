@@ -1,6 +1,6 @@
 # PRD: Screen Recorder Buffed
 
-> Status: APPROVED by the user on 2026-10-31. One item needs re-confirmation: privacy acceptance (see Open questions).
+> Status: APPROVED by the user on 2026-10-31. All open questions are closed as of 2026-11-02.
 
 ## Vision
 
@@ -43,7 +43,7 @@ A Linux desktop app that records the screen while listening to a meeting. It tra
   - Claude Code is the build tool only. It is not part of the app's runtime and does no transcription, translation or description.
   - The app needs internet access for translation and descriptions.
   - Estimated cost: about $0.10–0.15 per recorded hour.
-- **Privacy:** the user must accept that screen images and transcript text leave the machine. Confirm the Anthropic account's data-retention setting before use.
+- **Privacy:** the user accepts that screen images and transcript text are sent to Anthropic and retained for up to 30 days, the data-retention setting on the user's individual API plan (confirmed 2026-11-02). Zero data retention is not in use.
 - **Scope:** built by a solo developer working with AI.
 - **Non-goals:**
   - Windows and macOS support.
@@ -64,7 +64,6 @@ See `design-standard.md`.
 
 ## Open questions
 
-- [ ] Confirm the Anthropic account's data-retention setting is acceptable for meeting content. (The user accepted sending screen images and transcript text to the Claude API on 2026-10-31.)
 
 
 ## Decisions log
@@ -84,4 +83,5 @@ See `design-standard.md`.
 | Failed recordings | Can be opened in Recording review, with Retry | 2026-11-01 | User |
 | Privacy acceptance placement | Unchecked checkbox in Settings; processing blocked until ticked | 2026-11-01 | User |
 | Audio in recording | The MKV holds the screen video and the captured system-audio track in one file | 2026-11-01 | User |
+| Data retention | Accepted: the individual API plan's 30-day retention setting (Console, Data retention page); no zero data retention | 2026-11-02 | User |
 | Claude Code's role | Build tool only; the app's transcription, translation and descriptions do not use Claude Code | 2026-10-31 | User, after the terms and capability check (Claude Code cannot hear audio; Anthropic's legal page requires API-key auth for products) |
