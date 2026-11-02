@@ -36,6 +36,21 @@ def sidecar_path(video: Path) -> Path:
     return video.with_suffix(".json")
 
 
+def _atomic_write_json(target: Path, data: dict) -> None:
+    """Write via a temp file and rename. On failure the temp file, which can hold
+    transcript text, is removed (CLAUDE.md: transcript only in the MKV and sidecar)."""
+    temp = target.with_suffix(".json.tmp")
+    try:
+        temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temp, target)
+    except BaseException:
+        try:
+            temp.unlink()
+        except OSError:
+            pass
+        raise
+
+
 def build_sidecar(meta: SidecarMeta, status: str, result: ProcessingResult | None) -> dict:
     failed = status != READY or result is None
     return {
@@ -60,15 +75,34 @@ def build_sidecar(meta: SidecarMeta, status: str, result: ProcessingResult | Non
 def write_sidecar(video: Path, meta: SidecarMeta, status: str, result: ProcessingResult | None) -> Path:
     """Write the sidecar atomically (temp file, then rename). Raises OSError if that fails."""
     target = sidecar_path(video)
-    temp = target.with_suffix(".json.tmp")
-    temp.write_text(json.dumps(build_sidecar(meta, status, result), ensure_ascii=False, indent=2),
-                    encoding="utf-8")
-    os.replace(temp, target)
+    _atomic_write_json(target, build_sidecar(meta, status, result))
     return target
 
 
 def read_sidecar(video: Path) -> dict:
     return json.loads(sidecar_path(video).read_text(encoding="utf-8"))
+
+
+TITLE_MIN = 1
+TITLE_MAX = 80
+MSG_TITLE_LENGTH = "Title must be 1–80 Unicode code points"
+
+
+def validate_title(title: str) -> str | None:
+    """The error message for a bad title, or None (content-model.md, Recording library: Title)."""
+    return None if TITLE_MIN <= len(title) <= TITLE_MAX else MSG_TITLE_LENGTH
+
+
+def update_title(video: Path, title: str) -> None:
+    """Rewrite the sidecar with a new title, atomically. Raises OSError or ValueError on failure.
+
+    The video file is never renamed (content-model.md, Output files).
+    """
+    data = read_sidecar(video)
+    if not isinstance(data, dict):
+        raise ValueError("The sidecar is not a JSON object")
+    data["title"] = title
+    _atomic_write_json(sidecar_path(video), data)
 
 
 def read_meta(video: Path) -> SidecarMeta:

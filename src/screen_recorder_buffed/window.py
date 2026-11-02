@@ -31,6 +31,7 @@ from screen_recorder_buffed.portal import PortalClient, ScreenStream
 from screen_recorder_buffed.recording_controller import RecordingController
 from screen_recorder_buffed.recording_screen import RecordingScreen
 from screen_recorder_buffed.recording_state import State
+from screen_recorder_buffed.review_screen import ReviewScreen
 from screen_recorder_buffed.settings_screen import SettingsScreen
 from screen_recorder_buffed.settings_store import SettingsStore
 from screen_recorder_buffed.shortcut import ShortcutListener
@@ -101,6 +102,7 @@ class MainWindow(QWidget):
         keys: KeyStore | None = None,
         controller: RecordingController | None = None,
         global_shortcut: bool = True,
+        review_video: bool = True,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Screen Recorder Buffed")
@@ -122,6 +124,7 @@ class MainWindow(QWidget):
         self.stack = QStackedWidget()
         self.recording_screen: RecordingScreen | None = None
         self.library_screen: LibraryScreen | None = None
+        self.review_screen: ReviewScreen | None = None
 
         for index, name in enumerate(SCREEN_NAMES):
             self.sidebar.addItem(QListWidgetItem(name))
@@ -132,6 +135,15 @@ class MainWindow(QWidget):
                 self.library_screen = LibraryScreen(self._output_dir, self._controller.active_videos)
                 self.library_screen.review_requested.connect(self.open_review)
                 self.stack.addWidget(_in_scroll_area(self.library_screen))
+            elif index == REVIEW_INDEX:
+                self.review_screen = ReviewScreen(
+                    retry=self.retry_recording,
+                    is_processing=lambda video: video in self._controller.active_videos(),
+                    can_retry=lambda: self._controller.state is State.IDLE and not self._controller.retry_running,
+                    with_video=review_video,
+                )
+                self.review_screen.title_changed.connect(lambda _path: self._refresh_library())
+                self.stack.addWidget(_in_scroll_area(self.review_screen))
             elif index == SETTINGS_INDEX:
                 screen = SettingsScreen(self._store, self._keys)
                 self.stack.addWidget(_in_scroll_area(screen))
@@ -160,6 +172,9 @@ class MainWindow(QWidget):
 
         self._controller.state_changed.connect(self._on_state)
         self._controller.recording_finished.connect(lambda _path, _status: self._refresh_library())
+        if self.review_screen is not None:
+            self._controller.recording_finished.connect(self.review_screen.on_recording_finished)
+            self._controller.state_changed.connect(lambda _state: self.review_screen.refresh_status())
         self._on_state(self._controller.state.value)
 
         self._shortcut_listener: ShortcutListener | None = None
@@ -288,6 +303,8 @@ class MainWindow(QWidget):
         event.ignore()
 
     def _shutdown(self) -> None:
+        if self.review_screen is not None:
+            self.review_screen.stop_playback()
         if self._shortcut_listener is not None:
             self._shortcut_listener.request_stop()
             self._shortcut_listener.wait(3000)
@@ -305,7 +322,9 @@ class MainWindow(QWidget):
             self.library_screen.refresh()
 
     def open_review(self, video: str) -> None:
-        """Open a recording in Recording review (the review screen is built in Slice 7)."""
+        """Open a recording in Recording review, and list Review in the sidebar (site-contract.md §1)."""
+        if self.review_screen is not None:
+            self.review_screen.open(Path(video))
         self.show_recording_review()
         self.sidebar.setCurrentRow(REVIEW_INDEX)
 

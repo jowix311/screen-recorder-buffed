@@ -75,6 +75,7 @@ class LibraryScreen(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.cellClicked.connect(self._on_cell_clicked)
+        self.table.cellActivated.connect(self._on_cell_clicked)
         self.table.hide()
         layout.addWidget(self.table, stretch=1)
 

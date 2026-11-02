@@ -166,7 +166,8 @@ QLineEdit, QComboBox {{
 }}
 
 /* Focus ring: a 2px accent border, the Qt stand-in for the outline (see design-standard.md, Qt mapping). */
-QPushButton:focus, QLineEdit:focus, QComboBox:focus, QCheckBox:focus {{
+QPushButton:focus, QLineEdit:focus, QComboBox:focus, QCheckBox:focus,
+QSlider:focus, QListWidget:focus, QTableWidget:focus {{
     border: 2px solid {color-accent};
 }}
 

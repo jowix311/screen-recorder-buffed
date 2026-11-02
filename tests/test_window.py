@@ -38,7 +38,7 @@ class MainWindowTests(unittest.TestCase):
         # Fake stores: the tests never read the real keyring or config file.
         self._tmp = tempfile.TemporaryDirectory()
         store = SettingsStore(Path(self._tmp.name) / "settings.json")
-        self.window = MainWindow(store, FakeKeyStore(), global_shortcut=False)
+        self.window = MainWindow(store, FakeKeyStore(), global_shortcut=False, review_video=False)
         self.window.show()
 
     def tearDown(self) -> None:
